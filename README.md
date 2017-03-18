@@ -37,3 +37,5 @@ Once your computation is complete (an accept or reject state was encountered), o
 10101
 ACCEPT
 ```
+
+The supplied file must end with a blank line to exit the program.
