@@ -87,13 +87,16 @@ class Tape:
         self._tape[self._position] = value
 
     def __str__(self, *args, **kwargs):
-        return ''.join(self._tape)
+        output = ''.join(self._tape)
+
+        # Strip off null characters at the end
+        return output.strip(self.get_empty_val()).rstrip(self.get_empty_val())
 
 
 class State:
     """Turing Machine state, contains accept/reject status, and transitions."""
 
-    def __init__(self, states, tape):
+    def __init__(self, states):
         """Initializes a state as a reject with no transitions.
 
         :param states: The object that contains the states (updated externally)
@@ -101,7 +104,6 @@ class State:
         self.states = states
         self.accepts = False
         self._transitions = []
-        self.tape = tape
         pass
 
     def add_transition(self, input_symbol, next_state, write_symbol, movement_direction):
@@ -115,26 +117,26 @@ class State:
         """
         self._transitions.append((input_symbol, next_state, write_symbol, movement_direction))
 
-    def process_transition(self):
+    def process_transition(self, tape):
         """Handles reading to the tape and moving to the next transition.
 
         This function throws Accept if the machine has ended on an accept state, or reject
              if the machine has ended OR is requesting a transition that does not exist.
         """
-        tape_text = self.tape.read()
+        tape_text = tape.read()
 
         for transition in self._transitions:
             try:
                 if tape_text == transition[0]:
                     # Execute tape modification and movement
-                    self.tape.write(transition[2])
+                    tape.write(transition[2])
                     if transition[3].upper() == 'R':
-                        self.tape.move_right()
+                        tape.move_right()
                     else:
-                        self.tape.move_left()
+                        tape.move_left()
 
                     # Process new state
-                    self.states[transition[1]].process_transition()
+                    self.states[transition[1]].process_transition(tape)
             except Reject:
                 # Mask rejections, as one of the transitions could accept still
                 pass
@@ -149,7 +151,7 @@ class State:
 def main(argc: int, argv: list):
     tape = Tape()               # Contains the input tape
     states = {}                 # Stores all the states
-    states[0] = State(states, tape)   # Create initial state
+    states[0] = State(states)   # Create initial state
 
     # Go through all input lines
     for line in fileinput.input():
@@ -166,14 +168,14 @@ def main(argc: int, argv: list):
             state_num = int(line[1])
             # Create state if not exist
             if state_num not in states.keys():
-                states[state_num] = State(states, tape)
+                states[state_num] = State(states)
 
             # Add transition
             states[state_num].add_transition(line[2], int(line[3]), line[4], line[5])
 
             # Create destination state if not exists
             if int(line[3]) not in states.keys():
-                states[int(line[3])] = State(states, tape)
+                states[int(line[3])] = State(states)
 
         # If line specifies accept states
         elif line[0] == 'f':
@@ -192,15 +194,13 @@ def main(argc: int, argv: list):
 
             # Run machine
             try:
-                states[0].process_transition()
+                states[0].process_transition(tape)
             except Decision as err:
                 print(tape)
                 print(err)
             finally:
                 # Restore initial state
                 tape = Tape()                       # Contains the input tape
-                states = {}                         # Stores all the states
-                states[0] = State(states, tape)     # Create initial state
 
 
 if __name__ == "__main__":
